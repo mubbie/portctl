@@ -145,7 +145,7 @@ def scan_ports(show_all: bool = False) -> ScanResult:
 
     listening = [c for c in connections if c.status == "LISTEN"]
 
-    seen: set[tuple[int, int]] = set()
+    seen: set[tuple[int, int, str]] = set()
     results: list[ProcessInfo] = []
     pids_missing = False
 
@@ -158,7 +158,7 @@ def scan_ports(show_all: bool = False) -> ScanResult:
             pids_missing = True
             pid = 0
 
-        key = (port, pid)
+        key = (port, pid, bind_ip)
         if key in seen:
             continue
         seen.add(key)

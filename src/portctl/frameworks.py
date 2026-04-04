@@ -196,8 +196,12 @@ def _detect_from_project(project_root_str: str) -> Optional[str]:
         try:
             data = json.loads(pkg_json.read_text(encoding="utf-8"))
             all_deps: dict[str, str] = {}
-            all_deps.update(data.get("dependencies", {}))
-            all_deps.update(data.get("devDependencies", {}))
+            deps = data.get("dependencies", {})
+            dev_deps = data.get("devDependencies", {})
+            if isinstance(deps, dict):
+                all_deps.update(deps)
+            if isinstance(dev_deps, dict):
+                all_deps.update(dev_deps)
             for dep_name, framework in PACKAGE_JSON_FRAMEWORKS:
                 if dep_name in all_deps:
                     return framework
