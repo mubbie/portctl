@@ -22,7 +22,7 @@ from portctl.display import (
     render_table,
 )
 from portctl.killer import kill_process
-from portctl.scanner import ProcessInfo, get_git_branch, get_process_tree, scan_ports
+from portctl.scanner import ProcessInfo, ScanAccessDenied, get_git_branch, get_process_tree, scan_ports
 from portctl.utils import copy_to_clipboard, format_command
 
 app = typer.Typer(
@@ -32,8 +32,7 @@ app = typer.Typer(
     no_args_is_help=False,
 )
 stdout_console = Console()
-
-_SUBCOMMANDS = {"kill", "free", "cmd", "open", "copy", "clean", "--help", "-h", "--version", "-v"}
+stderr_console = Console(stderr=True)
 
 
 class SortKey(str, Enum):
@@ -78,12 +77,24 @@ def _parse_port_target(s: str) -> tuple[str, int, int] | None:
     return None
 
 
-def _scan_and_build_map() -> dict[int, ProcessInfo]:
-    """Scan all ports once and return a port->ProcessInfo map."""
-    result = scan_ports(show_all=True)
+def _scan_and_build_map() -> dict[int, list[ProcessInfo]]:
+    """Scan all ports once and return a port -> list of ProcessInfo map.
+
+    Multiple processes can listen on the same port with different bind addresses.
+    Exits with error if the OS denies access to enumerate connections.
+    """
+    try:
+        result = scan_ports(show_all=True)
+    except ScanAccessDenied:
+        render_privilege_hint(stderr_console)
+        stdout_console.print("[red]Cannot enumerate connections. Aborting.[/]")
+        raise typer.Exit(1)
     if result.pids_missing:
-        render_privilege_hint(Console(stderr=True))
-    return {p.port: p for p in result.processes}
+        render_privilege_hint(stderr_console)
+    port_map: dict[int, list[ProcessInfo]] = {}
+    for p in result.processes:
+        port_map.setdefault(p.port, []).append(p)
+    return port_map
 
 
 def _handle_port_target(target: str) -> None:
@@ -94,27 +105,27 @@ def _handle_port_target(target: str) -> None:
 
     kind, start, end = parsed
 
+    with stdout_console.status("Scanning...", spinner="dots"):
+        port_map = _scan_and_build_map()
+
     if kind == "single":
-        with stdout_console.status("Checking...", spinner="dots"):
-            port_map = _scan_and_build_map()
-            info = port_map.get(start)
-        if info is None:
+        infos = port_map.get(start)
+        if not infos:
             render_check_result(stdout_console, start, None)
         else:
+            info = infos[0]
             git_branch = get_git_branch(info.cwd)
             tree = get_process_tree(info.pid)
             render_inspect(stdout_console, info, git_branch, tree)
     else:
-        with stdout_console.status("Scanning...", spinner="dots"):
-            port_map = _scan_and_build_map()
-
         for port in range(start, end + 1):
-            info = port_map.get(port)
-            if info:
-                stdout_console.print(
-                    f"  [red]:{port}[/] {info.process_name} (PID {info.pid})"
-                    + (f" [{info.framework}]" if info.framework else "")
-                )
+            infos = port_map.get(port)
+            if infos:
+                for info in infos:
+                    stdout_console.print(
+                        f"  [red]:{port}[/] {info.process_name} (PID {info.pid})"
+                        + (f" [{info.framework}]" if info.framework else "")
+                    )
             else:
                 stdout_console.print(f"  [green]:{port}[/] free")
 
@@ -149,11 +160,16 @@ def main(
     render_banner(stdout_console)
 
     with stdout_console.status("Scanning ports...", spinner="dots"):
-        result = scan_ports(show_all=all_ports)
+        try:
+            result = scan_ports(show_all=all_ports)
+        except ScanAccessDenied:
+            render_privilege_hint(stderr_console)
+            stdout_console.print("[red]Cannot enumerate connections. Aborting.[/]")
+            raise typer.Exit(1)
         processes = result.processes
 
         if result.pids_missing:
-            render_privilege_hint(Console(stderr=True))
+            render_privilege_hint(stderr_console)
 
         if filter_terms:
             processes = [p for p in processes if _matches_filter(p, filter_terms)]
@@ -168,6 +184,22 @@ def main(
     render_table(stdout_console, processes, total_before_limit=total if limit else None)
 
 
+def _kill_all_on_port(
+    infos: list[ProcessInfo], force: bool = False, dry_run: bool = False,
+) -> bool:
+    """Kill all listeners on a port. Returns True if all ports are free.
+
+    "not_found" counts as success — the process already exited, so the port is free.
+    """
+    all_ok = True
+    for info in infos:
+        status, message = kill_process(info, force=force, dry_run=dry_run)
+        render_kill_result(stdout_console, status, message)
+        if status not in ("killed", "dry_run", "not_found"):
+            all_ok = False
+    return all_ok
+
+
 @app.command()
 def kill(
     ports: list[int] = typer.Argument(..., help="Port number(s) to kill"),
@@ -179,12 +211,11 @@ def kill(
         port_map = _scan_and_build_map()
 
     for port in ports:
-        info = port_map.get(port)
-        if info is None:
+        infos = port_map.get(port)
+        if not infos:
             render_kill_result(stdout_console, "not_found", f"Port {port} - no process found")
             continue
-        status, message = kill_process(info, force=force, dry_run=dry_run)
-        render_kill_result(stdout_console, status, message)
+        _kill_all_on_port(infos, force=force, dry_run=dry_run)
 
 
 @app.command()
@@ -201,17 +232,24 @@ def free(
     with stdout_console.status("Scanning...", spinner="dots"):
         port_map = _scan_and_build_map()
 
+    all_freed = True
     for port in ports:
-        info = port_map.get(port)
-        if info is None:
+        infos = port_map.get(port)
+        if not infos:
             stdout_console.print(f"  [dim]Port {port} is already free[/]")
             continue
-        status, message = kill_process(info, force=False)
-        render_kill_result(stdout_console, status, message)
+        if not _kill_all_on_port(infos):
+            all_freed = False
 
     if remaining:
-        stdout_console.print(f"  [dim]Running: {' '.join(remaining)}[/]")
-        subprocess.run(remaining)
+        if not all_freed:
+            stdout_console.print("[yellow]  Not all ports were freed. Skipping command.[/]")
+        else:
+            cmd_display = format_command(remaining) or " ".join(remaining)
+            stdout_console.print(f"  [dim]Running: {cmd_display}[/]")
+            result = subprocess.run(remaining)
+            if result.returncode != 0:
+                stdout_console.print(f"  [yellow]Command exited with code {result.returncode}[/]")
 
 
 @app.command()
@@ -222,12 +260,13 @@ def cmd(
     """Show the startup command for a port's process."""
     with stdout_console.status("Scanning...", spinner="dots"):
         port_map = _scan_and_build_map()
-        info = port_map.get(port)
+        infos = port_map.get(port)
 
-    if info is None:
+    if not infos:
         stdout_console.print(f"[dim]No process found on port {port}.[/]")
         raise typer.Exit(1)
 
+    info = infos[0]
     command = format_command(info.cmdline)
     if not command:
         stdout_console.print(f"[dim]Could not read command for PID {info.pid}.[/]")
@@ -271,7 +310,12 @@ def clean(
 ) -> None:
     """Kill orphaned and zombie dev processes."""
     with stdout_console.status("Scanning...", spinner="dots"):
-        result = scan_ports(show_all=False)
+        try:
+            result = scan_ports(show_all=False)
+        except ScanAccessDenied:
+            render_privilege_hint(stderr_console)
+            stdout_console.print("[red]Cannot enumerate connections. Aborting.[/]")
+            raise typer.Exit(1)
         targets = [p for p in result.processes if p.status_label in ("orphaned", "zombie")]
 
     if not targets:
@@ -284,23 +328,41 @@ def clean(
 
 
 def _get_remaining_args() -> list[str]:
-    try:
-        idx = sys.argv.index("--")
-        return sys.argv[idx + 1:]
-    except ValueError:
-        return []
+    return _trailing_command
+
+
+_SUBCOMMANDS = {"kill", "free", "cmd", "open", "copy", "clean", "--help", "-h", "--version", "-v"}
+
+# Stores args after "--" stripped before typer parses (for `free` command)
+_trailing_command: list[str] = []
 
 
 def _cli_entry() -> None:
-    """Entry point — intercept port/range args before typer sees them."""
+    """Entry point — intercept port/range args and strip trailing commands before typer parses."""
+    global _trailing_command
+
+    # Strip everything after "--" so typer doesn't choke on non-integer args
+    # (e.g. "portctl free 3000 -- npm start")
+    if "--" in sys.argv:
+        idx = sys.argv.index("--")
+        _trailing_command = sys.argv[idx + 1:]
+        sys.argv = sys.argv[:idx]
+    else:
+        _trailing_command = []
+
     args = sys.argv[1:]
     if args:
         first = args[0]
         if first not in _SUBCOMMANDS and not first.startswith("-"):
-            parsed = _parse_port_target(first)
-            if parsed is not None:
-                _handle_port_target(first)
-                return
+            # If it looks like a port/range (digits, maybe a dash), handle it
+            if re.match(r"^\d+(-\d+)?$", first):
+                parsed = _parse_port_target(first)
+                if parsed is not None:
+                    _handle_port_target(first)
+                    return
+                # Looks like a port/range but invalid — show a clear error
+                stdout_console.print(f"[red]Invalid port or range: {first}[/]")
+                raise SystemExit(1)
     app()
 
 

@@ -17,6 +17,7 @@ from portctl.frameworks import (
     find_project_root,
     project_name_from_root,
 )
+from portctl.utils import normalize_process_name
 
 
 @dataclass
@@ -26,6 +27,7 @@ class ProcessInfo:
     port: int
     pid: int
     process_name: Optional[str] = None
+    normalized_name: Optional[str] = None
     cmdline: Optional[list[str]] = None
     cwd: Optional[str] = None
     project_name: Optional[str] = None
@@ -59,7 +61,7 @@ def _safe_proc_attr(proc: psutil.Process, attr: str, default=None):
 
 def get_process_info(pid: int, port: int, bind_ip: str) -> Optional[ProcessInfo]:
     """Build a ProcessInfo for a given PID and port."""
-    if pid is None or pid == 0:
+    if pid == 0:
         return ProcessInfo(
             port=port, pid=0, process_name="[unknown]",
             bind_address=bind_ip, bind_scope=bind_label(bind_ip),
@@ -100,14 +102,14 @@ def get_process_info(pid: int, port: int, bind_ip: str) -> Optional[ProcessInfo]
             status_label = "orphaned"
         elif ppid == 0:
             pass  # kernel process
-        else:
-            try:
-                psutil.Process(ppid)
-            except psutil.NoSuchProcess:
-                status_label = "orphaned"
+        elif not psutil.pid_exists(ppid):
+            status_label = "orphaned"
+
+    norm_name = normalize_process_name(name) if name else None
 
     return ProcessInfo(
         port=port, pid=pid, process_name=name,
+        normalized_name=norm_name,
         cmdline=cmdline, cwd=cwd,
         project_name=project_name, project_root=project_root,
         framework=framework,
@@ -118,6 +120,11 @@ def get_process_info(pid: int, port: int, bind_ip: str) -> Optional[ProcessInfo]
     )
 
 
+class ScanAccessDenied(Exception):
+    """Raised when the OS denies access to enumerate network connections."""
+    pass
+
+
 @dataclass
 class ScanResult:
     """Result of a port scan, including metadata about the scan itself."""
@@ -126,8 +133,15 @@ class ScanResult:
 
 
 def scan_ports(show_all: bool = False) -> ScanResult:
-    """Scan all listening TCP ports and return enriched process info."""
-    connections = psutil.net_connections(kind="tcp")
+    """Scan all listening TCP ports and return enriched process info.
+
+    Raises ScanAccessDenied if the OS blocks connection enumeration entirely.
+    """
+    try:
+        connections = psutil.net_connections(kind="tcp")
+    except psutil.AccessDenied:
+        raise ScanAccessDenied()
+
     listening = [c for c in connections if c.status == "LISTEN"]
 
     seen: set[tuple[int, int]] = set()

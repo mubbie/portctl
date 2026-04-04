@@ -97,6 +97,8 @@ def render_privilege_hint(console: Console) -> None:
         console.print("[yellow]! Run as Administrator for full process details.[/]")
     elif sys.platform == "darwin":
         console.print("[yellow]! Run with sudo for full visibility across all users.[/]")
+    else:
+        console.print("[yellow]! Run with sudo for full visibility.[/]")
 
 
 def render_table(
@@ -128,7 +130,7 @@ def render_table(
         row: list[str] = [
             str(p.port),
             p.process_name or f"[dim]{_DASH}[/]",
-            str(p.pid) if p.pid else _DASH,
+            str(p.pid),
         ]
         if has_project:
             row.append(p.project_name or f"[dim]{_DASH}[/]")

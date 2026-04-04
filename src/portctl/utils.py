@@ -54,9 +54,15 @@ def format_memory(bytes_val: int) -> str:
 
 
 def format_command(cmdline: Optional[list[str]]) -> Optional[str]:
-    """Join a cmdline list into a properly quoted shell string."""
+    """Join a cmdline list into a properly quoted shell string.
+
+    Uses subprocess.list2cmdline on Windows (cmd.exe quoting)
+    and shlex.join on Unix (POSIX quoting).
+    """
     if not cmdline:
         return None
+    if sys.platform == "win32":
+        return subprocess.list2cmdline(cmdline)
     return shlex.join(cmdline)
 
 

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import re
 from functools import lru_cache
 from pathlib import Path
 from typing import Optional
@@ -27,8 +28,9 @@ PROJECT_MARKERS = [
 MAX_WALK_DEPTH = 15
 
 
+@lru_cache(maxsize=256)
 def find_project_root(cwd: Optional[str]) -> Optional[Path]:
-    """Walk up from cwd looking for a project marker."""
+    """Walk up from cwd looking for a project marker. Cached by cwd string."""
     if not cwd:
         return None
     path = Path(cwd).resolve()
@@ -91,7 +93,7 @@ COMMAND_FRAMEWORKS: dict[str, str] = {
     "vite": "Vite",
     "nuxt": "Nuxt",
     "angular": "Angular",
-    "ng serve": "Angular",
+    "ng": "Angular",
     "webpack": "Webpack",
     "remix": "Remix",
     "astro": "Astro",
@@ -124,6 +126,12 @@ PROCESS_FRAMEWORKS: dict[str, str] = {
 
 # Derived: set of known runtime names (used by classifier)
 KNOWN_RUNTIMES: set[str] = set(PROCESS_FRAMEWORKS.keys())
+
+# Compiled word-boundary patterns for command-line matching (shared with classifier)
+COMMAND_PATTERNS: list[tuple[re.Pattern[str], str]] = [
+    (re.compile(rf"\b{re.escape(kw)}\b", re.IGNORECASE), fw)
+    for kw, fw in COMMAND_FRAMEWORKS.items()
+]
 
 # Layer 2: config files that indicate a framework
 CONFIG_FILE_FRAMEWORKS: dict[str, str] = {
@@ -162,6 +170,18 @@ PACKAGE_JSON_FRAMEWORKS: list[tuple[str, str]] = [
 ]
 
 
+# pyproject.toml dependency keywords -> framework (substring match on file content)
+PYPROJECT_FRAMEWORKS: list[tuple[str, str]] = [
+    ("fastapi", "FastAPI"),
+    ("django", "Django"),
+    ("flask", "Flask"),
+    ("starlette", "Starlette"),
+    ("tornado", "Tornado"),
+    ("sanic", "Sanic"),
+    ("aiohttp", "aiohttp"),
+]
+
+
 @lru_cache(maxsize=128)
 def _detect_from_project(project_root_str: str) -> Optional[str]:
     """Detect framework from project files. Cached by project root path."""
@@ -184,6 +204,17 @@ def _detect_from_project(project_root_str: str) -> Optional[str]:
         except (json.JSONDecodeError, OSError):
             pass
 
+    # Python projects: check pyproject.toml dependencies for known frameworks
+    pyproject = project_root / "pyproject.toml"
+    if pyproject.exists():
+        try:
+            content = pyproject.read_text(encoding="utf-8")
+            for keyword, framework in PYPROJECT_FRAMEWORKS:
+                if keyword in content:
+                    return framework
+        except OSError:
+            pass
+
     return None
 
 
@@ -200,11 +231,11 @@ def detect_framework(
             return f"Docker ({WELL_KNOWN_PORTS[port]})"
         return "Docker"
 
-    # Layer 1: command line keywords
+    # Layer 1: command line keywords (word-boundary regex)
     if cmdline:
-        cmd_str = " ".join(cmdline).lower()
-        for keyword, framework in COMMAND_FRAMEWORKS.items():
-            if keyword in cmd_str:
+        cmd_str = " ".join(cmdline)
+        for pattern, framework in COMMAND_PATTERNS:
+            if pattern.search(cmd_str):
                 return framework
 
     # Layer 2: project files (cached per project root)
@@ -216,8 +247,8 @@ def detect_framework(
     # Layer 3: process name fallback
     if process_name:
         name = normalize_process_name(process_name)
-        framework = PROCESS_FRAMEWORKS.get(name)
-        if framework:
-            return framework
+        result = PROCESS_FRAMEWORKS.get(name)
+        if result:
+            return result
 
     return None

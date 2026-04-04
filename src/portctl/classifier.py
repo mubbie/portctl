@@ -6,19 +6,12 @@ platform-specific blocklists. A process is "dev" if ANY signal fires.
 
 from __future__ import annotations
 
-import re
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from portctl.scanner import ProcessInfo
 
-from portctl.frameworks import COMMAND_FRAMEWORKS, KNOWN_RUNTIMES, is_docker_process
-from portctl.utils import normalize_process_name
-
-# Derived from COMMAND_FRAMEWORKS so there's a single source of truth
-DEV_COMMAND_PATTERNS: list[re.Pattern[str]] = [
-    re.compile(rf"\b{re.escape(kw)}\b") for kw in COMMAND_FRAMEWORKS
-]
+from portctl.frameworks import KNOWN_RUNTIMES, is_docker_process
 
 
 def _signal_has_project_root(proc: ProcessInfo) -> bool:
@@ -26,20 +19,18 @@ def _signal_has_project_root(proc: ProcessInfo) -> bool:
 
 
 def _signal_known_runtime(proc: ProcessInfo) -> bool:
-    if not proc.process_name:
+    if not proc.normalized_name:
         return False
-    return normalize_process_name(proc.process_name) in KNOWN_RUNTIMES
+    return proc.normalized_name in KNOWN_RUNTIMES
 
 
 def _signal_docker_process(proc: ProcessInfo) -> bool:
     return is_docker_process(proc.process_name)
 
 
-def _signal_dev_command(proc: ProcessInfo) -> bool:
-    if not proc.cmdline:
-        return False
-    cmd_lower = " ".join(proc.cmdline).lower()
-    return any(pattern.search(cmd_lower) for pattern in DEV_COMMAND_PATTERNS)
+def _signal_has_framework(proc: ProcessInfo) -> bool:
+    """If detect_framework already identified a framework, it's a dev process."""
+    return proc.framework is not None
 
 
 def is_dev_process(proc: ProcessInfo) -> bool:
@@ -48,5 +39,5 @@ def is_dev_process(proc: ProcessInfo) -> bool:
         _signal_has_project_root(proc)
         or _signal_known_runtime(proc)
         or _signal_docker_process(proc)
-        or _signal_dev_command(proc)
+        or _signal_has_framework(proc)
     )
