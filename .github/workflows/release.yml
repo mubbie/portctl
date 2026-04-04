@@ -43,15 +43,15 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+      # Build and publish always run — skip-existing makes re-runs safe
       - uses: actions/setup-python@v6
-        if: steps.check.outputs.exists == 'false'
         with:
           python-version: "3.12"
 
       - name: Build package
-        if: steps.check.outputs.exists == 'false'
         run: pip install build && python -m build
 
       - name: Publish to PyPI
-        if: steps.check.outputs.exists == 'false'
         uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          skip-existing: true
