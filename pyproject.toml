@@ -1,6 +1,6 @@
 [project]
 name = "portctl"
-version = "0.1.0"
+version = "0.1.1"
 description = "Manage your ports — view, inspect, and kill processes on TCP ports"
 readme = "README.md"
 license = {text = "MIT"}
