@@ -1,5 +1,8 @@
 # portctl
 
+[![PyPI](https://img.shields.io/pypi/v/portctl)](https://pypi.org/project/portctl/)
+[![CI](https://github.com/mubbie/portctl/actions/workflows/ci.yml/badge.svg)](https://github.com/mubbie/portctl/actions/workflows/ci.yml)
+
 > Manage your ports.
 
 A cross-platform Python CLI tool for viewing, managing, and killing processes on TCP ports.
