@@ -1,0 +1,44 @@
+name: CI
+
+on:
+  push:
+    branches: [main, dev]
+  pull_request:
+    branches: [main]
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - run: pip install ruff mypy
+      - run: ruff check src/
+      - run: mypy src/portctl/ --ignore-missing-imports
+
+  test:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os:
+          - ubuntu-latest
+          - ubuntu-24.04-arm
+          - macos-latest
+          - windows-latest
+          - windows-11-arm
+        python-version: ["3.9", "3.12", "3.13"]
+        exclude:
+          - os: windows-11-arm
+            python-version: "3.9"
+          - os: ubuntu-24.04-arm
+            python-version: "3.9"
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: ${{ matrix.python-version }}
+      - run: pip install -e .
+      - run: portctl --version
+      - run: portctl --help
