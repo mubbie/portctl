@@ -32,9 +32,9 @@ dependencies = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/mubarakidoko/portctl"
-Repository = "https://github.com/mubarakidoko/portctl"
-Issues = "https://github.com/mubarakidoko/portctl/issues"
+Homepage = "https://github.com/mubbie/portctl"
+Repository = "https://github.com/mubbie/portctl"
+Issues = "https://github.com/mubbie/portctl/issues"
 
 [project.scripts]
 portctl = "portctl.cli:_cli_entry"
