@@ -26,7 +26,6 @@ jobs:
           - ubuntu-latest        # x86_64
           - ubuntu-24.04-arm     # ARM64
           - macos-latest         # Apple Silicon (ARM64)
-          - macos-13             # Intel x86_64
           - windows-latest       # x86_64
           - windows-11-arm       # ARM64
         python-version: ["3.9", "3.12", "3.13"]
