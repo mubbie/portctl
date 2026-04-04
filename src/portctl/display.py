@@ -54,6 +54,10 @@ FRAMEWORK_STYLES: dict[str, str] = {
     ".NET": "magenta",
     "Elixir": "magenta",
     "Erlang": "red",
+    "Starlette": "cyan",
+    "Tornado": "white",
+    "Sanic": "yellow",
+    "aiohttp": "cyan",
 }
 
 STATUS_MARKUP: dict[str, str] = {
@@ -84,7 +88,7 @@ def _styled_bind(scope: str) -> str:
 def render_banner(console: Console) -> None:
     console.print(
         Panel(
-            "[bold]portctl[/]\n[dim]manage your ports[/]",
+            "[bold]portctl[/]\n[dim]scanning your ports...[/]",
             border_style="cyan",
             width=44,
         )
@@ -92,7 +96,6 @@ def render_banner(console: Console) -> None:
 
 
 def render_privilege_hint(console: Console) -> None:
-    """Print a platform-specific hint about needing elevated privileges."""
     if sys.platform == "win32":
         console.print("[yellow]! Run as Administrator for full process details.[/]")
     elif sys.platform == "darwin":
@@ -108,12 +111,14 @@ def render_table(
 ) -> None:
     if not processes:
         console.print("[dim]No listening ports found.[/]")
+        console.print()
+        console.print("[dim]  Run [bold]portctl --all[/dim] to include system ports[/]")
         return
 
     has_project = any(p.project_name for p in processes)
     has_framework = any(p.framework for p in processes)
 
-    table = Table(box=box.ROUNDED, border_style="dim", header_style="bold cyan")
+    table = Table(box=box.SIMPLE_HEAVY, border_style="dim", header_style="bold cyan")
     table.add_column("PORT", justify="right", style="bold", no_wrap=True)
     table.add_column("PROCESS", no_wrap=True)
     table.add_column("PID", justify="right", style="dim", no_wrap=True)
@@ -128,7 +133,7 @@ def render_table(
 
     for p in processes:
         row: list[str] = [
-            str(p.port),
+            f":{p.port}",
             p.process_name or f"[dim]{_DASH}[/]",
             str(p.pid),
         ]
@@ -146,11 +151,20 @@ def render_table(
 
     console.print(table)
 
-    if total_before_limit is not None and total_before_limit > len(processes):
-        console.print(
-            f"[dim]Showing {len(processes)} of {total_before_limit} ports "
-            f"{_DOT} remove -n to see all[/]"
-        )
+    # Footer hints
+    count = len(processes)
+    total = total_before_limit if total_before_limit is not None else count
+    parts: list[str] = []
+
+    if total_before_limit is not None and total_before_limit > count:
+        parts.append(f"{count} of {total} ports")
+    else:
+        parts.append(f"{count} port{'s' if count != 1 else ''} active")
+
+    parts.append("Run [bold]portctl <port>[/bold] for details")
+    parts.append("[bold]--all[/bold] to show everything")
+
+    console.print(f"\n[dim]  {f'  {_DOT}  '.join(parts)}[/]")
 
 
 def render_inspect(
@@ -201,6 +215,12 @@ def render_inspect(
         expand=False,
         padding=(1, 2),
     ))
+
+    # Hint footer
+    console.print(
+        f"\n[dim]  Run [bold]portctl kill {info.port}[/bold] to stop"
+        f"  {_DOT}  [bold]portctl cmd {info.port}[/bold] to see startup command[/]"
+    )
 
 
 def render_check_result(console: Console, port: int, info: ProcessInfo | None) -> None:

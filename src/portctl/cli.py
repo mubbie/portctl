@@ -141,9 +141,15 @@ def main(
     ctx: typer.Context,
     all_ports: bool = typer.Option(False, "--all", "-a", help="Show all listening ports, not just dev processes"),
     sort: SortKey = typer.Option(SortKey.port, "--sort", "-s", help="Sort by: port, mem, uptime"),
-    filter_terms: Optional[list[str]] = typer.Option(None, "--filter", "-f", help="Filter by process, framework, or project"),
-    limit: Optional[int] = typer.Option(None, "--limit", "-n", help="Limit to top N rows"),
-    version: Optional[bool] = typer.Option(None, "--version", "-v", callback=_version_callback, is_eager=True, help="Show version"),
+    filter_terms: Optional[list[str]] = typer.Option(
+        None, "--filter", "-f", help="Filter by process, framework, or project",
+    ),
+    limit: Optional[int] = typer.Option(
+        None, "--limit", "-n", help="Limit to top N rows",
+    ),
+    version: Optional[bool] = typer.Option(
+        None, "--version", "-v", callback=_version_callback, is_eager=True, help="Show version",
+    ),
 ) -> None:
     """List listening ports, inspect a port, or scan a range.
 

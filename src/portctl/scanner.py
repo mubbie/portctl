@@ -44,6 +44,7 @@ class ProcessInfo:
 
 
 def bind_label(ip: str) -> str:
+    """Classify a bind address: 'local' for loopback, 'public' for wildcard, or the raw IP."""
     if ip in ("127.0.0.1", "::1"):
         return "local"
     if ip in ("0.0.0.0", "::"):
@@ -173,6 +174,7 @@ def scan_ports(show_all: bool = False) -> ScanResult:
 
 
 def get_git_branch(cwd: Optional[str]) -> Optional[str]:
+    """Get the current git branch for a directory. Returns None if git is unavailable or not a repo."""
     if not cwd:
         return None
     try:

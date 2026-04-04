@@ -6,6 +6,82 @@ A cross-platform Python CLI tool for viewing, managing, and killing processes on
 
 Inspired by [port-whisperer](https://github.com/LarsenCundric/port-whisperer) by [Larsen Cundric](https://x.com/larsencc).
 
+## What it looks like
+
+```
+$ portctl
+
+ ┌──────────────────────────────────────────┐
+ │ portctl                                  │
+ │ scanning your ports...                   │
+ └──────────────────────────────────────────┘
+
+  PORT    PROCESS      PID     PROJECT       FRAMEWORK      UPTIME   MEM        BIND     STATUS
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  :8000   python.exe   14320   payments-api  FastAPI        3h 12m   48.7 MB   public   ● healthy
+  :5173   node         52981   dashboard     Vite           22m      112.4 MB  local    ● healthy
+  :8080   go           8734    gateway       Go             6d 1h    23.1 MB   public   ● healthy
+  :5432   docker       7712    —             Docker (PG)    14d 8h   67.0 MB   local    ● healthy
+
+  4 ports active  ·  Run portctl <port> for details  ·  --all to show everything
+```
+
+```
+$ portctl 5173
+
+ ┌─────────────────────── Port :5173 ───────────────────────┐
+ │                                                          │
+ │  Process     node                                        │
+ │  PID         52981                                       │
+ │  Status      ● healthy                                   │
+ │  Framework   Vite                                        │
+ │  Memory      112.4 MB                                    │
+ │  Uptime      22m                                         │
+ │  Started     2026-04-04 10:15:42                         │
+ │  Bind        local (127.0.0.1)                           │
+ │  Command     node node_modules/.bin/vite --port 5173     │
+ │                                                          │
+ │  Directory   /home/mubarak/projects/dashboard            │
+ │  Project     dashboard                                   │
+ │  Git Branch  feat/charts                                 │
+ │                                                          │
+ │  Process Tree                                            │
+ │    → node (52981)                                        │
+ │      └─ bash (52900)                                     │
+ │        └─ tmux: server (1120)                            │
+ │                                                          │
+ └──────────────────────────────────────────────────────────┘
+
+  Run portctl kill 5173 to stop  ·  portctl cmd 5173 to see startup command
+```
+
+```
+$ portctl 8000-8100
+
+  :8000 python.exe (PID 14320) [FastAPI]
+  :8001 free
+  :8002 free
+  ...
+  :8080 go (PID 8734) [Go]
+  :8081 free
+  ...
+  :8100 free
+```
+
+```
+$ portctl free 5173 -- npm run dev
+
+  ✓ Killed node (PID 52981) on port 5173
+  Running: npm run dev
+```
+
+```
+$ portctl kill 8000 8080
+
+  ✓ Killed python.exe (PID 14320) on port 8000
+  ✓ Killed go (PID 8734) on port 8080
+```
+
 ## Install
 
 ```bash
