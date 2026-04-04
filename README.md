@@ -8,7 +8,7 @@ Inspired by [port-whisperer](https://github.com/LarsenCundric/port-whisperer) by
 
 ## What it looks like
 
-```
+```bash
 $ portctl
 
  ┌──────────────────────────────────────────┐
@@ -26,7 +26,7 @@ $ portctl
   4 ports active  ·  Run portctl <port> for details  ·  --all to show everything
 ```
 
-```
+```bash
 $ portctl 5173
 
  ┌─────────────────────── Port :5173 ───────────────────────┐
@@ -55,7 +55,7 @@ $ portctl 5173
   Run portctl kill 5173 to stop  ·  portctl cmd 5173 to see startup command
 ```
 
-```
+```bash
 $ portctl 8000-8100
 
   :8000 python.exe (PID 14320) [FastAPI]
@@ -68,14 +68,14 @@ $ portctl 8000-8100
   :8100 free
 ```
 
-```
+```bash
 $ portctl free 5173 -- npm run dev
 
   ✓ Killed node (PID 52981) on port 5173
   Running: npm run dev
 ```
 
-```
+```bash
 $ portctl kill 8000 8080
 
   ✓ Killed python.exe (PID 14320) on port 8000

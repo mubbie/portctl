@@ -6,7 +6,7 @@ readme = "README.md"
 license = {text = "MIT"}
 requires-python = ">=3.9"
 authors = [
-    {name = "Mubarak Idoko"},
+    {name = "Mubbie Idoko"},
 ]
 keywords = ["ports", "cli", "devtools", "process", "network"]
 classifiers = [
