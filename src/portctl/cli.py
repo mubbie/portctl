@@ -333,11 +333,46 @@ def clean(
         render_kill_result(stdout_console, status, message)
 
 
+@app.command()
+def update() -> None:
+    """Update portctl to the latest version."""
+    stderr_console.print(f"[dim]Current version: {__version__}[/dim]")
+    stderr_console.print("[dim]Checking for updates...[/dim]")
+
+    try:
+        result = subprocess.run(
+            [sys.executable, "-m", "pip", "install", "--upgrade", "portctl"],
+            capture_output=True,
+            text=True,
+        )
+    except Exception as e:
+        stderr_console.print(f"[red]Update failed: {e}[/red]")
+        raise typer.Exit(1)
+
+    if result.returncode != 0:
+        stderr_console.print(f"[red]Update failed:[/red]\n{result.stderr}")
+        raise typer.Exit(1)
+
+    if "already satisfied" in result.stdout.lower():
+        stdout_console.print(f"[green]Already up to date ({__version__}).[/green]")
+    else:
+        try:
+            ver_result = subprocess.run(
+                [sys.executable, "-c", "from portctl import __version__; print(__version__)"],
+                capture_output=True,
+                text=True,
+            )
+            new_ver = ver_result.stdout.strip()
+        except Exception:
+            new_ver = "unknown"
+        stdout_console.print(f"[green]Updated: {__version__} -> {new_ver}[/green]")
+
+
 def _get_remaining_args() -> list[str]:
     return _trailing_command
 
 
-_SUBCOMMANDS = {"kill", "free", "cmd", "open", "copy", "clean", "--help", "-h", "--version", "-v"}
+_SUBCOMMANDS = {"kill", "free", "cmd", "open", "copy", "clean", "update", "--help", "-h", "--version", "-v"}
 
 # Stores args after "--" stripped before typer parses (for `free` command)
 _trailing_command: list[str] = []
