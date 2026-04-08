@@ -161,12 +161,14 @@ portctl clean --dry-run    # Preview without killing
 
 ## Features
 
-- **Cross-platform** -- works on macOS, Linux, and Windows
-- **Framework detection** -- identifies Next.js, Vite, Django, FastAPI, Flask, Express, and 20+ others
-- **Project detection** -- finds project root and name from package.json, pyproject.toml, Cargo.toml, etc.
-- **Smart filtering** -- shows only dev processes by default, use `--all` for everything
-- **Protected processes** -- refuses to kill system-critical processes (systemd, lsass, etc.)
-- **Git branch** -- shows which branch each process is running from
+- **Cross-platform** - works on macOS, Linux, and Windows
+- **Framework detection** - identifies Next.js, Vite, Django, FastAPI, Flask, Express, and 20+ others
+- **Project detection** - finds project root and name from package.json, pyproject.toml, Cargo.toml, etc.
+- **Smart filtering** -shows only dev processes by default, use `--all` for everything
+- **Protected processes** - refuses to kill system-critical processes (systemd, lsass, etc.)
+- **Git branch** - shows which branch each process is running from
+
+Framework, project, and protected processes detection can be expanded to cover more cases.
 
 ## Platform Support
 
@@ -174,7 +176,7 @@ portctl clean --dry-run    # Preview without killing
 |----------|--------|
 | macOS    | Supported (use `sudo` for full visibility) |
 | Linux    | Supported |
-| Windows  | Supported (admin recommended for full PID visibility) |
+| Windows  | Supported (run as admin recommended for full PID visibility) |
 
 ## License
 
