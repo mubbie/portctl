@@ -1,8 +1,9 @@
 # portctl
 
 [![PyPI](https://img.shields.io/pypi/v/portctl)](https://pypi.org/project/portctl/)
+[![Python](https://img.shields.io/pypi/pyversions/portctl)](https://pypi.org/project/portctl/)
 [![CI](https://github.com/mubbie/portctl/actions/workflows/ci.yml/badge.svg)](https://github.com/mubbie/portctl/actions/workflows/ci.yml)
-[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/mubbie/portctl/blob/main/LICENSE)
 
 > Manage your ports.
 
@@ -94,12 +95,16 @@ pip install portctl
 pipx install portctl
 ```
 
+> **Alias:** `pctl` is available as a shorthand for `portctl`.
+
 ## Quick Start
 
 ```bash
 portctl                    # Show dev server ports
 portctl 3000               # Inspect what's on port 3000
 portctl kill 3000           # Kill it
+portctl --version          # Show installed version
+portctl update             # Update to latest version
 ```
 
 ## Commands
@@ -149,6 +154,13 @@ portctl free 3000 5432 -- docker compose up  # Free multiple, then run
 ```bash
 portctl cmd 3000           # Print the command that started the process
 portctl cmd 3000 --copy    # Copy it to clipboard
+```
+
+### Update & version
+
+```bash
+portctl update             # Update portctl to the latest version
+portctl --version          # Show installed version
 ```
 
 ### Utilities

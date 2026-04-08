@@ -1,6 +1,6 @@
 [project]
 name = "portctl"
-version = "0.2.0"
+version = "0.2.1"
 description = "Manage your ports — view, inspect, and kill processes on TCP ports"
 readme = "README.md"
 license = {text = "MIT"}
@@ -38,6 +38,7 @@ Issues = "https://github.com/mubbie/portctl/issues"
 
 [project.scripts]
 portctl = "portctl.cli:_cli_entry"
+pctl = "portctl.cli:_cli_entry"
 
 [build-system]
 requires = ["hatchling"]
